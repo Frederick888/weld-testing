@@ -16,13 +16,21 @@
  */
 package org.jboss.weld.junit5.explicitInjection;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import jakarta.enterprise.inject.Default;
+import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Named;
 
 import org.jboss.weld.junit5.ExplicitParamInjection;
+import org.jboss.weld.junit5.WeldInitiator;
 import org.jboss.weld.junit5.WeldJunit5Extension;
+import org.jboss.weld.junit5.WeldSetup;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 
 /**
  *
@@ -31,6 +39,28 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(WeldJunit5Extension.class)
 @ExplicitParamInjection
 public class ExplicitParameterInjectionViaClassAnnotationTest {
+
+    @WeldSetup
+    public WeldInitiator weld = WeldInitiator
+            .from(ExplicitParameterInjectionViaClassAnnotationTest.class, Foo.class, BeanWithQualifier.class)
+            .build();
+
+    @Produces
+    @MyQualifier
+    @Named("hello")
+    Foo produceNamedFoo() {
+        final var mockedFoo = Mockito.mock(Foo.class);
+        Mockito.when(mockedFoo.ping()).thenReturn("mocked pong");
+        return mockedFoo;
+    }
+
+    @Produces
+    @Named("world")
+    Map<String, String> produceNamedMap() {
+        final var map = new HashMap<String, String>();
+        map.put("hello", "world");
+        return map;
+    }
 
     @Test
     @ExtendWith(CustomExtension.class)
@@ -44,5 +74,11 @@ public class ExplicitParameterInjectionViaClassAnnotationTest {
         // BeanWithQualifier should be resolved
         Assertions.assertNotNull(bean);
         Assertions.assertEquals(BeanWithQualifier.class.getSimpleName(), bean.ping());
+    }
+
+    @Test
+    public void testNamedFoo(@MyQualifier @Named("hello") Foo foo, @Named("world") Map<String, String> map) {
+        Assertions.assertEquals("mocked pong", foo.ping());
+        Assertions.assertEquals("world", map.get("hello"));
     }
 }
